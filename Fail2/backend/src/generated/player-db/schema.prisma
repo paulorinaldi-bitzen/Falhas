@@ -1,0 +1,496 @@
+generator playerDbClient {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/player-db"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PLAYER_DATABASE_URL")
+}
+
+model Subscription {
+  Id                  String               @id(map: "PK_Subscriptions") @db.Uuid
+  PlanType            Int
+  Status              Int
+  StatusObservations  String
+  Courtesy            Boolean
+  GatewayId           String
+  Observations        String
+  Excluded            Boolean
+  CreatedAt           DateTime             @db.Timestamptz(6)
+  UpdatedAt           DateTime             @db.Timestamptz(6)
+  WillRenew           Boolean              @default(false)
+  SubscriptionDetails SubscriptionDetail[]
+  Users               Users[]
+
+  @@map("Subscriptions")
+}
+
+model SubscriptionDetail {
+  Id                   Int          @id(map: "PK_SubscriptionDetails") @default(autoincrement())
+  StartDate            DateTime     @db.Timestamptz(6)
+  EndDate              DateTime?    @db.Timestamptz(6)
+  Value                Decimal      @db.Decimal
+  PaymentStatus        Int
+  SubscriptionId       String       @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+  Excluded             Boolean
+  CreatedAt            DateTime     @db.Timestamptz(6)
+  UpdatedAt            DateTime     @db.Timestamptz(6)
+  GatewayTransactionId String       @default("")
+  Store                Int          @default(0)
+  StoreProductId       String       @default("")
+  Subscriptions        Subscription @relation(fields: [SubscriptionId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SubscriptionDetails_Subscriptions_SubscriptionId")
+
+  @@index([SubscriptionId], map: "IX_SubscriptionDetails_SubscriptionId")
+  @@map("SubscriptionDetails")
+}
+
+model AdminUsers {
+  Id         String   @id(map: "PK_AdminUsers") @db.Uuid
+  UserId     String   @db.Uuid
+  Permission Int
+  Status     Boolean
+  Excluded   Boolean
+  CreatedAt  DateTime @db.Timestamptz(6)
+  UpdatedAt  DateTime @db.Timestamptz(6)
+  Users      Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AdminUsers_Users_UserId")
+
+  @@index([UserId], map: "IX_AdminUsers_UserId")
+}
+
+model Episodes {
+  Id                 String             @id(map: "PK_Episodes") @db.Uuid
+  Name               String             @db.VarChar(60)
+  ExpirationDate     DateTime?          @db.Timestamptz(6)
+  Description        String
+  Transcription      String
+  Excluded           Boolean
+  CreatedAt          DateTime           @db.Timestamptz(6)
+  UpdatedAt          DateTime           @db.Timestamptz(6)
+  EpisodeExclusivity Int                @default(0)
+  SegmentId          String?            @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+  Image              String             @default("")
+  DurationSeconds    Int                @default(0)
+  SegmentBlocked     Boolean            @default(false)
+  ReleaseDate        DateTime           @default(dbgenerated("'-infinity'::timestamp with time zone")) @db.Timestamptz(6)
+  PackageBlocked     Boolean            @default(false)
+  PackageId          String?            @db.Uuid
+  PackageOrder       Int                @default(0)
+  SpotifyId          String?            @default("") @db.VarChar(255)
+  EpisodeStatus      Int                @default(0)
+  RemuxAttempts      Int                @default(0)
+  Packages           Packages?          @relation(fields: [PackageId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Episodes_Packages_PackageId")
+  Segments           Segments?          @relation(fields: [SegmentId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Episodes_Segments_SegmentId")
+  FavoriteEpisodes   FavoriteEpisodes[]
+
+  @@index([PackageId], map: "IX_Episodes_PackageId")
+  @@index([ReleaseDate], map: "IX_Episodes_ReleaseDate")
+  @@index([SegmentId], map: "IX_Episodes_SegmentId")
+}
+
+model FavoriteEpisodes {
+  Id        Int      @id(map: "PK_FavoriteEpisodes") @default(autoincrement())
+  EpisodeId String   @db.Uuid
+  UserId    String   @db.Uuid
+  Excluded  Boolean
+  CreatedAt DateTime @db.Timestamptz(6)
+  UpdatedAt DateTime @db.Timestamptz(6)
+  Episodes  Episodes @relation(fields: [EpisodeId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_FavoriteEpisodes_Episodes_EpisodeId")
+  Users     Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_FavoriteEpisodes_Users_UserId")
+
+  @@index([EpisodeId], map: "IX_FavoriteEpisodes_EpisodeId")
+  @@index([UserId], map: "IX_FavoriteEpisodes_UserId")
+}
+
+model Notices {
+  Id                   String    @id(map: "PK_Notices") @db.Uuid
+  Title                String    @db.VarChar(60)
+  ExpirationDate       DateTime? @db.Timestamptz(6)
+  Description          String
+  SendPushNotification Boolean
+  Excluded             Boolean
+  CreatedAt            DateTime  @db.Timestamptz(6)
+  UpdatedAt            DateTime  @db.Timestamptz(6)
+}
+
+model PackagePrices {
+  Id             Int      @id(map: "PK_PackagePrices") @default(autoincrement())
+  PackageId      String   @unique(map: "IX_PackagePrices_PackageId") @db.Uuid
+  UseStoresPrice Boolean
+  UsePonyCoin    Boolean
+  PonyCoinPrice  Int
+  Packages       Packages @relation(fields: [PackageId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_PackagePrices_Packages_PackageId")
+}
+
+model Packages {
+  Id               String         @id(map: "PK_Packages") @db.Uuid
+  Name             String
+  AppleProductId   String         @unique(map: "IX_Packages_AppleProductId")
+  AndroidProductId String         @unique(map: "IX_Packages_AndroidProductId")
+  BeginDate        DateTime       @db.Timestamptz(6)
+  EndDate          DateTime?      @db.Timestamptz(6)
+  Description      String
+  Status           Boolean
+  CreatedAt        DateTime       @default(dbgenerated("'-infinity'::timestamp with time zone")) @db.Timestamptz(6)
+  Excluded         Boolean        @default(false)
+  UpdatedAt        DateTime       @default(dbgenerated("'-infinity'::timestamp with time zone")) @db.Timestamptz(6)
+  Image            String         @default("")
+  Episodes         Episodes[]
+  PackagePrices    PackagePrices?
+  UserPackages     UserPackages[]
+}
+
+model PollOptions {
+  Id                     Int                      @id(map: "PK_PollOptions") @default(autoincrement())
+  PollId                 String                   @db.Uuid
+  Description            String
+  Order                  Int
+  Polls                  Polls                    @relation(fields: [PollId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_PollOptions_Polls_PollId")
+  PollsOptionsUserAnswer PollsOptionsUserAnswer[]
+
+  @@index([PollId], map: "IX_PollOptions_PollId")
+}
+
+model Polls {
+  Id          String        @id(map: "PK_Polls") @db.Uuid
+  Title       String
+  Description String
+  BeginDate   DateTime      @db.Timestamptz(6)
+  EndDate     DateTime      @db.Timestamptz(6)
+  IsEmphasis  Boolean
+  CreatedAt   DateTime      @default(dbgenerated("'-infinity'::timestamp with time zone")) @db.Timestamptz(6)
+  Excluded    Boolean       @default(false)
+  UpdatedAt   DateTime      @default(dbgenerated("'-infinity'::timestamp with time zone")) @db.Timestamptz(6)
+  PollOptions PollOptions[]
+}
+
+model PollsOptionsUserAnswer {
+  Id           Int         @id(map: "PK_PollsOptionsUserAnswer") @default(autoincrement())
+  PollOptionId Int
+  UserId       String      @db.Uuid
+  PollOptions  PollOptions @relation(fields: [PollOptionId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_PollsOptionsUserAnswer_PollOptions_PollOptionId")
+
+  @@index([PollOptionId], map: "IX_PollsOptionsUserAnswer_PollOptionId")
+}
+
+model RefreshTokens {
+  Id              String   @id(map: "PK_RefreshTokens") @db.Uuid
+  UserId          String   @db.Uuid
+  Token           String
+  CreatedAt       DateTime @db.Timestamptz(6)
+  ExpiresAt       DateTime @db.Timestamptz(6)
+  IsUsed          Boolean
+  IsRevoked       Boolean
+  ReplacedByToken String?
+  Users           Users    @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_RefreshTokens_Users_UserId")
+
+  @@index([UserId], map: "IX_RefreshTokens_UserId")
+}
+
+model RevenueCatWebhookEvents {
+  Id        String   @id(map: "PK_RevenueCatWebhookEvents") @db.Uuid
+  EventId   String
+  Type      String
+  Payload   Json?
+  Excluded  Boolean
+  CreatedAt DateTime @db.Timestamptz(6)
+  UpdatedAt DateTime @db.Timestamptz(6)
+
+  @@index([EventId], map: "IX_RevenueCatWebhookEvents_EventId")
+}
+
+model Segments {
+  Id                String     @id(map: "PK_Segments") @db.Uuid
+  Description       String
+  SegmentType       Int
+  SubscriptionStart DateTime?  @db.Timestamptz(6)
+  SubscriptionEnd   DateTime?  @db.Timestamptz(6)
+  Status            Boolean
+  Excluded          Boolean
+  CreatedAt         DateTime   @db.Timestamptz(6)
+  UpdatedAt         DateTime   @db.Timestamptz(6)
+  Name              String     @default("") @db.VarChar(60)
+  Image             String     @default("")
+  Episodes          Episodes[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyAnalyticsSyncLog {
+  Id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SyncType         String    @db.VarChar(50)
+  StartTime        DateTime  @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  EndTime          DateTime? @db.Timestamptz(6)
+  Status           String    @db.VarChar(20)
+  Message          String?
+  RecordsProcessed Int?      @default(0)
+  ErrorDetails     Json?
+  CreatedAt        DateTime  @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifyAnalyticsSyncLog_CreatedAt")
+  @@index([ErrorDetails], map: "IX_SpotifyAnalyticsSyncLog_ErrorDetails", type: Gin)
+  @@index([StartTime(sort: Desc)], map: "IX_SpotifyAnalyticsSyncLog_StartTime")
+  @@index([Status], map: "IX_SpotifyAnalyticsSyncLog_Status")
+  @@index([SyncType], map: "IX_SpotifyAnalyticsSyncLog_SyncType")
+  @@index([SyncType, Status, StartTime(sort: Desc)], map: "IX_SpotifyAnalyticsSyncLog_TypeStatusTime")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyEpisodeMetrics {
+  Id               String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Time             DateTime @db.Timestamptz(6)
+  SpotifyEpisodeId String   @db.Uuid
+  AggregationType  String   @db.VarChar(20)
+  PeriodType       String   @db.VarChar(20)
+  Hour             Int?
+  HourNormalized   Int?     @default(dbgenerated("COALESCE(\"Hour\", '-1'::integer)"))
+  TotalCount       BigInt   @default(0)
+  CountryData      Json?
+  Metadata         Json?
+  SyncedAt         DateTime @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+
+  @@unique([Time, SpotifyEpisodeId, AggregationType, PeriodType, HourNormalized], map: "UQ_SpotifyEpisodeMetrics")
+  @@index([AggregationType], map: "IX_SpotifyEpisodeMetrics_AggregationType")
+  @@index([CountryData], map: "IX_SpotifyEpisodeMetrics_CountryData", type: Gin)
+  @@index([SpotifyEpisodeId, Time(sort: Desc)], map: "IX_SpotifyEpisodeMetrics_EpisodeTime")
+  @@index([Metadata], map: "IX_SpotifyEpisodeMetrics_Metadata", type: Gin)
+  @@index([PeriodType], map: "IX_SpotifyEpisodeMetrics_PeriodType")
+  @@index([SpotifyEpisodeId], map: "IX_SpotifyEpisodeMetrics_SpotifyEpisodeId")
+  @@index([Time(sort: Desc)], map: "IX_SpotifyEpisodeMetrics_Time")
+  @@ignore
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyEpisodes {
+  Id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SpotifyEpisodeId String          @unique @db.VarChar(255)
+  SpotifyPodcastId String          @db.Uuid
+  Name             String          @db.VarChar(500)
+  HtmlDescription  String?
+  DurationMs       Int?
+  ReleaseDate      DateTime?       @db.Date
+  ImageUrl         String?         @db.VarChar(1000)
+  Uri              String?         @db.VarChar(500)
+  RawData          Json?
+  CreatedAt        DateTime?       @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  UpdatedAt        DateTime?       @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  SpotifyPodcasts  SpotifyPodcasts @relation(fields: [SpotifyPodcastId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SpotifyEpisodes_SpotifyPodcast")
+
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifyEpisodes_CreatedAt")
+  @@index([Name], map: "IX_SpotifyEpisodes_Name")
+  @@index([SpotifyPodcastId, ReleaseDate(sort: Desc)], map: "IX_SpotifyEpisodes_PodcastReleaseDate")
+  @@index([RawData], map: "IX_SpotifyEpisodes_RawData", type: Gin)
+  @@index([ReleaseDate(sort: Desc)], map: "IX_SpotifyEpisodes_ReleaseDate")
+  @@index([SpotifyEpisodeId], map: "IX_SpotifyEpisodes_SpotifyEpisodeId")
+  @@index([SpotifyPodcastId], map: "IX_SpotifyEpisodes_SpotifyPodcastId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyErrors {
+  Id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  PonyAccountId String?   @db.Uuid
+  ErrorCode     Int
+  ErrorMessage  String
+  ExceptionType String?   @db.VarChar(255)
+  StackTrace    String?
+  CorrelationId String?   @db.Uuid
+  CreatedAt     DateTime? @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  UpdatedAt     DateTime? @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+
+  @@index([CorrelationId], map: "IX_SpotifyErrors_CorrelationId")
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifyErrors_CreatedAt")
+  @@index([ErrorCode], map: "IX_SpotifyErrors_ErrorCode")
+  @@index([PonyAccountId], map: "IX_SpotifyErrors_PonyAccountId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyLogs {
+  Id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  PonyAccountId   String    @db.Uuid
+  ResultCode      Int
+  RoutineId       String    @db.VarChar(100)
+  Endpoint        String?   @db.VarChar(255)
+  HttpMethod      String?   @db.VarChar(10)
+  HttpStatusCode  Int?
+  RequestPayload  String?
+  ResponseBody    String?
+  SpotifyUserId   String?   @db.VarChar(255)
+  ExecutionTimeMs Int?
+  IpAddress       String?   @db.VarChar(45)
+  CorrelationId   String?   @db.Uuid
+  CreatedAt       DateTime? @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+
+  @@index([CorrelationId], map: "IX_SpotifyLogs_CorrelationId")
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifyLogs_CreatedAt")
+  @@index([HttpStatusCode], map: "IX_SpotifyLogs_HttpStatusCode")
+  @@index([PonyAccountId, CreatedAt(sort: Desc)], map: "IX_SpotifyLogs_PonyAccountCreated")
+  @@index([PonyAccountId], map: "IX_SpotifyLogs_PonyAccountId")
+  @@index([ResultCode], map: "IX_SpotifyLogs_ResultCode")
+  @@index([RoutineId], map: "IX_SpotifyLogs_RoutineId")
+  @@index([SpotifyUserId], map: "IX_SpotifyLogs_SpotifyUserId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyPodcastFollowers {
+  Id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SpotifyPodcastId String          @db.Uuid
+  FollowersCount   BigInt
+  SnapshotDate     DateTime        @db.Date
+  CreatedAt        DateTime        @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  SpotifyPodcasts  SpotifyPodcasts @relation(fields: [SpotifyPodcastId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SpotifyPodcastFollowers_SpotifyPodcast")
+
+  @@unique([SpotifyPodcastId, SnapshotDate], map: "UQ_SpotifyPodcastFollowers")
+  @@index([SpotifyPodcastId, SnapshotDate(sort: Desc)], map: "IX_SpotifyPodcastFollowers_PodcastSnapshotDate")
+  @@index([SnapshotDate(sort: Desc)], map: "IX_SpotifyPodcastFollowers_SnapshotDate")
+  @@index([SpotifyPodcastId], map: "IX_SpotifyPodcastFollowers_SpotifyPodcastId")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyPodcastMetrics {
+  Id               String          @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  Time             DateTime        @db.Timestamptz(6)
+  SpotifyPodcastId String          @db.Uuid
+  AggregationType  String          @db.VarChar(20)
+  PeriodType       String          @db.VarChar(20)
+  TotalCount       BigInt          @default(0)
+  CountryData      Json?
+  Metadata         Json?
+  SyncedAt         DateTime        @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  SpotifyPodcasts  SpotifyPodcasts @relation(fields: [SpotifyPodcastId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_SpotifyPodcastMetrics_SpotifyPodcast")
+
+  @@unique([Time, SpotifyPodcastId, AggregationType, PeriodType], map: "UQ_SpotifyPodcastMetrics")
+  @@index([AggregationType], map: "IX_SpotifyPodcastMetrics_AggregationType")
+  @@index([CountryData], map: "IX_SpotifyPodcastMetrics_CountryData", type: Gin)
+  @@index([Metadata], map: "IX_SpotifyPodcastMetrics_Metadata", type: Gin)
+  @@index([PeriodType], map: "IX_SpotifyPodcastMetrics_PeriodType")
+  @@index([SpotifyPodcastId, Time(sort: Desc)], map: "IX_SpotifyPodcastMetrics_PodcastTime")
+  @@index([SpotifyPodcastId], map: "IX_SpotifyPodcastMetrics_SpotifyPodcastId")
+  @@index([Time(sort: Desc)], map: "IX_SpotifyPodcastMetrics_Time")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyPodcasts {
+  Id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SpotifyShowId           String                    @unique @db.VarChar(255)
+  Name                    String                    @db.VarChar(500)
+  HtmlDescription         String?
+  Publisher               String?                   @db.VarChar(255)
+  ImageUrl                String?                   @db.VarChar(1000)
+  Uri                     String?                   @db.VarChar(500)
+  RawData                 Json?
+  CreatedAt               DateTime?                 @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  UpdatedAt               DateTime?                 @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  SpotifyEpisodes         SpotifyEpisodes[]
+  SpotifyPodcastFollowers SpotifyPodcastFollowers[]
+  SpotifyPodcastMetrics   SpotifyPodcastMetrics[]
+  SpotifySyncLogs         SpotifySyncLogs[]
+
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifyPodcasts_CreatedAt")
+  @@index([Name], map: "IX_SpotifyPodcasts_Name")
+  @@index([Publisher], map: "IX_SpotifyPodcasts_Publisher")
+  @@index([RawData], map: "IX_SpotifyPodcasts_RawData", type: Gin)
+  @@index([SpotifyShowId], map: "IX_SpotifyPodcasts_SpotifyShowId")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifySyncLogs {
+  Id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SyncType              String           @db.VarChar(20)
+  ResultCode            Int
+  Message               String?
+  SpotifyPodcastId      String?          @db.Uuid
+  EpisodesProcessed     Int?
+  EpisodesSynced        Int?
+  TotalEpisodesExpected Int?
+  Offset                Int?
+  ErrorDetails          String?
+  ExecutionTimeMs       Int?
+  CorrelationId         String?          @db.Uuid
+  CreatedAt             DateTime?        @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  SpotifyPodcasts       SpotifyPodcasts? @relation(fields: [SpotifyPodcastId], references: [Id], onUpdate: NoAction, map: "FK_SpotifySyncLogs_SpotifyPodcast")
+
+  @@index([CorrelationId], map: "IX_SpotifySyncLogs_CorrelationId")
+  @@index([CreatedAt(sort: Desc)], map: "IX_SpotifySyncLogs_CreatedAt")
+  @@index([ResultCode], map: "IX_SpotifySyncLogs_ResultCode")
+  @@index([SpotifyPodcastId], map: "IX_SpotifySyncLogs_SpotifyPodcastId")
+  @@index([SyncType], map: "IX_SpotifySyncLogs_SyncType")
+  @@index([SyncType, CreatedAt(sort: Desc)], map: "IX_SpotifySyncLogs_SyncTypeCreated")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SpotifyUserLinks {
+  Id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  SpotifyPartnerUserId String    @db.VarChar(255)
+  PonyAccountId        String    @db.Uuid
+  Name                 String?   @db.VarChar(255)
+  Email                String?   @db.VarChar(255)
+  UserProfile          Json?
+  Uri                  String?   @db.VarChar(500)
+  CreatedAt            DateTime? @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+  UpdatedAt            DateTime? @default(dbgenerated("(now() AT TIME ZONE 'UTC'::text)")) @db.Timestamptz(6)
+
+  @@index([PonyAccountId], map: "IX_SpotifyUserLinks_PonyAccountId")
+  @@index([SpotifyPartnerUserId], map: "IX_SpotifyUserLinks_SpotifyPartnerUserId")
+}
+
+model TransactionHistories {
+  Id          String    @id(map: "PK_TransactionHistories") @db.Uuid
+  Description String
+  Plataform   String
+  StartDate   DateTime  @db.Timestamptz(6)
+  EndDate     DateTime? @db.Timestamptz(6)
+  Status      String
+  Excluded    Boolean
+  CreatedAt   DateTime  @db.Timestamptz(6)
+  UpdatedAt   DateTime  @db.Timestamptz(6)
+  UserId      String    @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+  NetRevenue  Decimal   @default(0.0) @db.Decimal(18, 2)
+}
+
+model UserPackages {
+  Id           Int       @id(map: "PK_UserPackages") @default(autoincrement())
+  UserId       String    @db.Uuid
+  PackageId    String    @db.Uuid
+  PurchaseDate DateTime? @db.Timestamptz(6)
+  Packages     Packages  @relation(fields: [PackageId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_UserPackages_Packages_PackageId")
+  Users        Users     @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_UserPackages_Users_UserId")
+
+  @@index([PackageId], map: "IX_UserPackages_PackageId")
+  @@index([UserId], map: "IX_UserPackages_UserId")
+}
+
+model Users {
+  Id                  String             @id(map: "PK_Users") @db.Uuid
+  IdPonyAccount       String             @db.Uuid
+  Excluded            Boolean
+  CreatedAt           DateTime           @db.Timestamptz(6)
+  UpdatedAt           DateTime           @db.Timestamptz(6)
+  Image               String             @default("")
+  SubscriptionId      String?            @db.Uuid
+  DeletionRequestedAt DateTime?          @db.Timestamptz(6)
+  AdminUsers          AdminUsers[]
+  FavoriteEpisodes    FavoriteEpisodes[]
+  RefreshTokens       RefreshTokens[]
+  UserPackages        UserPackages[]
+  Subscriptions       Subscription?      @relation(fields: [SubscriptionId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Users_Subscriptions_SubscriptionId")
+
+  @@index([SubscriptionId], map: "IX_Users_SubscriptionId")
+}
+
+model UsersReproductions {
+  Id        String   @id(map: "PK_UsersReproductions") @db.Uuid
+  EpisodeId String   @db.Uuid
+  Date      DateTime @db.Timestamptz(6)
+  UserId    String   @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+}
+
+model EFMigrationsHistory {
+  MigrationId    String @id(map: "PK___EFMigrationsHistory") @db.VarChar(150)
+  ProductVersion String @db.VarChar(32)
+
+  @@map("__EFMigrationsHistory")
+}

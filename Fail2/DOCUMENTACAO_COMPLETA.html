@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentação de Funcionalidades - SupPage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid #95a5a6;
+            padding-bottom: 8px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 25px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin: 20px 0;
+            color: #7f8c8d;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .endpoint {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        .note {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #ffc107;
+        }
+        @media print {
+            body {
+                max-width: 100%;
+            }
+            h1, h2, h3 {
+                page-break-after: avoid;
+            }
+            .endpoint, .note {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Documentação de Funcionalidades - SupPage</h1>
+
+    <h2>Visão Geral</h2>
+    <p>O SupPage é um painel administrativo para suporte de usuários e assinaturas, composto por:</p>
+    <ul>
+        <li><strong>Backend</strong>: NestJS + Prisma 6.19.3 + PostgreSQL</li>
+        <li><strong>Frontend</strong>: React + Firebase Authentication</li>
+        <li><strong>Autenticação</strong>: Firebase Auth com controle de emails permitidos</li>
+    </ul>
+
+    <hr>
+
+    <h2>Arquitetura do Backend</h2>
+
+    <h3>Bancos de Dados</h3>
+    <p>O sistema utiliza dois schemas Prisma separados:</p>
+
+    <h4>1. Ponei Database (ponei-db)</h4>
+    <ul>
+        <li><strong>Schema</strong>: <code>prisma/ponei-db.prisma</code></li>
+        <li><strong>Variável de Ambiente</strong>: <code>PONEI_DATABASE_URL</code></li>
+        <li><strong>Tabelas</strong>:
+            <ul>
+                <li><code>Users</code>: Armazena dados de usuários do sistema Ponei
+                    <ul>
+                        <li><code>Id</code>: Identificador único</li>
+                        <li><code>IdPonyAccount</code>: ID da conta Pony</li>
+                        <li><code>SubscriptionId</code>: ID da assinatura associada</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h4>2. Player Database (player-db)</h4>
+    <ul>
+        <li><strong>Schema</strong>: <code>prisma/player-db.prisma</code></li>
+        <li><strong>Variável de Ambiente</strong>: <code>PLAYER_DATABASE_URL</code></li>
+        <li><strong>Tabelas</strong>:
+            <ul>
+                <li><code>AspNetUsers</code>: Usuários de autenticação</li>
+                <li><code>Profiles</code>: Perfis de usuários (nome, CPF/CNPJ, telefone)</li>
+                <li><code>UserAddresses</code>: Endereços de usuários (CEP, país)</li>
+                <li><code>Subscriptions</code>: Assinaturas (tipo, status, cortesia, gateway, data início)</li>
+                <li><code>SubscriptionDetails</code>: Detalhes históricos de assinaturas</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h3>Serviços</h3>
+
+    <h4>PrismaService</h4>
+    <ul>
+        <li><strong>Localização</strong>: <code>src/database/prisma.service.ts</code></li>
+        <li><strong>Expõe duas instâncias</strong>:
+            <ul>
+                <li><code>poneiDb</code>: Acesso ao banco Ponei</li>
+                <li><code>playerDb</code>: Acesso ao banco Player</li>
+            </ul>
+        </li>
+    </ul>
+
+    <hr>
+
+    <h2>Módulo de Usuários</h2>
+
+    <h3>Endpoints API</h3>
+
+    <div class="endpoint">
+        <h4>1. Buscar Usuários</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>POST /users/search</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Payload</strong>:
+                <pre><code>{
+  field: 'email' | 'cpf' | 'phone' | 'profileId',
+  value: string
+}</code></pre>
+            </li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Normaliza o valor de busca (remove espaços, pontos, traços)</li>
+                    <li>Busca no banco Player (AspNetUsers, Profiles, UserAddresses)</li>
+                    <li>Enriquece dados com informações do Ponei (User, Subscription)</li>
+                    <li>Retorna até 50 resultados ordenados por ID descendente</li>
+                </ul>
+            </li>
+            <li><strong>Campos retornados</strong>:
+                <ul>
+                    <li><code>id</code>: ID do usuário (AspNetUsers)</li>
+                    <li><code>name</code>: Nome do perfil</li>
+                    <li><code>email</code>: Email do usuário</li>
+                    <li><code>cpf</code>: CPF/CNPJ do perfil</li>
+                    <li><code>phone</code>: Telefone (AspNetUsers ou Profile)</li>
+                    <li><code>profile_id</code>: ID do perfil</li>
+                    <li><code>cep</code>: CEP do endereço</li>
+                    <li><code>country</code>: País do endereço</li>
+                    <li><code>id_do_poney_account</code>: ID da conta Ponei</li>
+                    <li><code>subscription</code>: Resumo da assinatura ativa</li>
+                    <li><code>subscription_details</code>: Lista de detalhes históricos</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="endpoint">
+        <h4>2. Buscar Subscription por Poney Account ID</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>GET /users/poney-subscription/:poneyAccountId</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Parâmetro</strong>: <code>poneyAccountId</code> (path parameter)</li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Busca usuário no banco Ponei pelo ID da conta Pony</li>
+                    <li>Retorna o <code>SubscriptionId</code> associado</li>
+                </ul>
+            </li>
+            <li><strong>Resposta</strong>:
+                <pre><code>{
+  subscriptionId: string | null
+}</code></pre>
+            </li>
+        </ul>
+    </div>
+
+    <div class="endpoint">
+        <h4>3. Atualizar Email do Usuário</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>PUT /users/email</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Payload</strong>:
+                <pre><code>{
+  userId: string,
+  newEmail: string (valid email format)
+}</code></pre>
+            </li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Atualiza campos no banco Player:
+                        <ul>
+                            <li><code>UserName</code> → novo email</li>
+                            <li><code>NormalizedUserName</code> → novo email em maiúsculas</li>
+                            <li><code>Email</code> → novo email</li>
+                            <li><code>NormalizedEmail</code> → novo email em maiúsculas</li>
+                        </ul>
+                    </li>
+                    <li>Retorna ID e email atualizados</li>
+                </ul>
+            </li>
+            <li><strong>Erros</strong>:
+                <ul>
+                    <li><code>P2025</code>: User ID não encontrado (404)</li>
+                    <li>Outros erros são propagados</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <hr>
+
+    <h2>Módulo de Assinaturas</h2>
+
+    <h3>Endpoints API</h3>
+
+    <div class="endpoint">
+        <h4>1. Buscar Assinatura por ID</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>GET /subscriptions/:id</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Parâmetro</strong>: <code>id</code> (path parameter)</li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Busca assinatura base no banco Player</li>
+                    <li>Busca detalhes ativos (não excluídos) da assinatura</li>
+                    <li>Retorna dados completos da assinatura</li>
+                </ul>
+            </li>
+            <li><strong>Resposta</strong>:
+                <pre><code>{
+  base: {
+    Id: string,
+    PlanType: string | null,
+    Status: string | null,
+    Courtesy: boolean | null,
+    GatewayId: string | null,
+    StartDate: Date | null
+  },
+  detailsBySubscriptionId: [
+    {
+      Id: string,
+      SubscriptionId: string | null,
+      PlanType: string | null,
+      Courtesy: boolean | null,
+      StartDate: Date | null,
+      EndDate: Date | null,
+      GatewayTransactionId: string | null,
+      Store: string | null,
+      StoreProductId: string | null,
+      Excluded: boolean | null,
+      CreatedAt: Date | null
+    }
+  ]
+}</code></pre>
+            </li>
+            <li><strong>Erros</strong>:
+                <ul>
+                    <li>Assinatura não encontrada (404)</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="endpoint">
+        <h4>2. Atualizar Data de Término (End Date)</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>PUT /subscriptions/end-date</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Payload</strong>:
+                <pre><code>{
+  subscriptionId: string,
+  newEndDate: string (ISO date format, e.g., "2024-12-31")
+}</code></pre>
+            </li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Adiciona hora 23:59:59 à data fornecida</li>
+                    <li>Atualiza <code>EndDate</code> em todos os detalhes ativos da assinatura</li>
+                    <li>Retorna sucesso e detalhes atualizados</li>
+                </ul>
+            </li>
+            <li><strong>Erros</strong>:
+                <ul>
+                    <li>Subscription ID não encontrado (404)</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <div class="endpoint">
+        <h4>3. Atualizar Data de Início (Start Date)</h4>
+        <ul>
+            <li><strong>Rota</strong>: <code>PUT /subscriptions/start-date</code></li>
+            <li><strong>Autenticação</strong>: Firebase Auth (obrigatória)</li>
+            <li><strong>Payload</strong>:
+                <pre><code>{
+  subscriptionId: string,
+  newStartDate: string (ISO date format)
+}</code></pre>
+            </li>
+            <li><strong>Funcionalidade</strong>:
+                <ul>
+                    <li>Atualiza <code>StartDate</code> na tabela <code>Subscriptions</code></li>
+                    <li>Atualiza <code>StartDate</code> em todos os detalhes ativos</li>
+                    <li>Retorna assinatura atualizada</li>
+                </ul>
+            </li>
+            <li><strong>Erros</strong>:
+                <ul>
+                    <li>Subscription ID não encontrado (404)</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <hr>
+
+    <h2>Frontend - React</h2>
+
+    <h3>Autenticação</h3>
+    <ul>
+        <li><strong>Método</strong>: Firebase Authentication</li>
+        <li><strong>Configuração</strong>: Variáveis de ambiente em <code>frontend/.env</code>
+            <ul>
+                <li><code>VITE_FIREBASE_API_KEY</code></li>
+                <li><code>VITE_FIREBASE_AUTH_DOMAIN</code></li>
+                <li><code>VITE_FIREBASE_PROJECT_ID</code></li>
+                <li><code>VITE_FIREBASE_APP_ID</code></li>
+            </ul>
+        </li>
+        <li><strong>Controle de Acesso</strong>: Emails permitidos configurados no backend (<code>ADMIN_ALLOWED_EMAILS</code>)</li>
+    </ul>
+
+    <h3>Interface Principal</h3>
+
+    <h4>Tela de Login</h4>
+    <ul>
+        <li>Formulário com email e senha</li>
+        <li>Botão para alternar tema claro/escuro</li>
+        <li>Validação de configuração Firebase</li>
+        <li>Mensagens de erro em caso de falha</li>
+    </ul>
+
+    <h4>Painel Administrativo</h4>
+
+    <p><strong>Header</strong>:</p>
+    <ul>
+        <li>Logo da marca</li>
+        <li>Título "Suporte Administrativo"</li>
+        <li>Botão de alternar tema</li>
+        <li>Botão de logout</li>
+    </ul>
+
+    <p><strong>Navegação por Abas</strong>:</p>
+
+    <h5>1. Aba "Consulta de Usuários"</h5>
+
+    <p><strong>Formulário de Busca</strong>:</p>
+    <ul>
+        <li>Seleção de campo: Email, CPF, Telefone, Profile ID</li>
+        <li>Campo de valor para pesquisa</li>
+        <li>Botão "Buscar"</li>
+    </ul>
+
+    <p><strong>Resultados da Busca</strong>:</p>
+    <ul>
+        <li>Cards para cada usuário encontrado</li>
+        <li>Informações exibidas:
+            <ul>
+                <li>Nome e ID</li>
+                <li>Email (com botão de copiar)</li>
+                <li>CPF (com botão de copiar)</li>
+                <li>Telefone (com botão de copiar)</li>
+                <li>Profile ID (com botão de copiar)</li>
+                <li>ID do Poney Account (com botão de copiar)</li>
+                <li>CEP (com botão de copiar)</li>
+                <li>País (com botão de copiar)</li>
+            </ul>
+        </li>
+    </ul>
+
+    <p><strong>Seção de Assinatura</strong> (se usuário tiver):</p>
+    <ul>
+        <li>Tipo de plano</li>
+        <li>Plataforma (store ou gateway)</li>
+        <li>Cortesia (Sim/Não)</li>
+        <li>Status</li>
+        <li>ID da transação</li>
+        <li>Start Date (formatado pt-BR)</li>
+        <li>End Date (formatado pt-BR)</li>
+        <li>Todos os campos com botão de copiar</li>
+    </ul>
+
+    <p><strong>Tabela de Detalhes da Assinatura</strong>:</p>
+    <ul>
+        <li>Plano</li>
+        <li>Cortesia</li>
+        <li>Período (StartDate - EndDate)</li>
+        <li>Transação</li>
+        <li>Linhas com botões de copiar</li>
+    </ul>
+
+    <p><strong>Indicador de Assinatura Grátis</strong>:</p>
+    <ul>
+        <li>Exibido quando não há assinatura ativa</li>
+        <li>Status verde: "Assinatura grátis (sem assinatura ativa)"</li>
+    </ul>
+
+    <p><strong>Formulário de Edição de Email</strong>:</p>
+    <ul>
+        <li>Campo User ID</li>
+        <li>Campo Novo Email</li>
+        <li>Botão "Preencher formulário de edição" (preenche automaticamente a partir do resultado selecionado)</li>
+        <li>Botão "Atualizar email"</li>
+        <li>Após atualização, refaz a busca automaticamente</li>
+    </ul>
+
+    <p><strong>Auto-busca de Assinatura</strong>:</p>
+    <ul>
+        <li>Quando usuário tem <code>id_do_poney_account</code>, busca automaticamente:
+            <ul>
+                <li>Subscription ID via <code>/users/poney-subscription/{id}</code></li>
+                <li>Detalhes da assinatura via <code>/subscriptions/{id}</code></li>
+                <li>Preenche os campos da aba de assinaturas automaticamente</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h5>2. Aba "Consulta de Assinaturas"</h5>
+
+    <p><strong>Indicador de Subscription ID do Poney</strong>:</p>
+    <ul>
+        <li>Exibido quando veio da busca de usuário</li>
+        <li>Botão para copiar</li>
+    </ul>
+
+    <p><strong>Formulário de Busca</strong>:</p>
+    <ul>
+        <li>Campo Subscription ID</li>
+        <li>Botão "Buscar"</li>
+    </ul>
+
+    <p><strong>Resultado da Assinatura</strong>:</p>
+    <ul>
+        <li>Informações base da assinatura</li>
+        <li>Tabela de detalhes ativos</li>
+        <li>Formatação de datas em pt-BR</li>
+        <li>Botões de copiar em todos os campos</li>
+    </ul>
+
+    <p><strong>Formulário de Atualização de End Date</strong>:</p>
+    <ul>
+        <li>Campo Subscription ID (preenchido automaticamente)</li>
+        <li>Campo New End Date</li>
+        <li>Botão "Atualizar End Date"</li>
+        <li>Após atualização, refaz a busca automaticamente</li>
+    </ul>
+
+    <p><strong>Formulário de Atualização de Start Date</strong>:</p>
+    <ul>
+        <li>Campo Subscription ID</li>
+        <li>Campo New Start Date</li>
+        <li>Botão "Atualizar Start Date"</li>
+        <li>Após atualização, refaz a busca automaticamente</li>
+    </ul>
+
+    <h3>Funcionalidades Gerais</h3>
+
+    <p><strong>Tema</strong>:</p>
+    <ul>
+        <li>Alternância entre modo claro e escuro</li>
+        <li>Gradientes animados de fundo</li>
+        <li>Cores adaptativas (cyan/slate)</li>
+    </ul>
+
+    <p><strong>Cópia para Clipboard</strong>:</p>
+    <ul>
+        <li>Botões de copiar em todos os campos importantes</li>
+        <li>Ícone SVG de copiar</li>
+        <li>Feedback visual ao passar o mouse</li>
+    </ul>
+
+    <p><strong>Tratamento de Erros</strong>:</p>
+    <ul>
+        <li>Mensagens de erro em vermelho/rose</li>
+        <li>Erros de sessão expirada</li>
+        <li>Erros de configuração Firebase</li>
+        <li>Erros de validação</li>
+    </ul>
+
+    <p><strong>Loading States</strong>:</p>
+    <ul>
+        <li>Indicadores de busy durante operações assíncronas</li>
+        <li>Botões desabilitados durante carregamento</li>
+    </ul>
+
+    <p><strong>Refresh de Token</strong>:</p>
+    <ul>
+        <li>Renovação automática do token Firebase antes de cada requisição</li>
+        <li>Tratamento de sessão expirada</li>
+    </ul>
+
+    <hr>
+
+    <h2>Variáveis de Ambiente</h2>
+
+    <h3>Backend (.env)</h3>
+    <pre><code>PORT=3000
+FRONTEND_URL=http://localhost:5173
+
+# Firebase
+FIREBASE_PROJECT_ID=suppage-bitzen
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@suppage-bitzen.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."
+
+# Controle de Acesso
+ADMIN_ALLOWED_EMAILS=pauloricardoodev@gmail.com,paulorinaldibitzen@gmail.com
+
+# Bancos de Dados
+PONEI_DATABASE_URL=postgresql://...
+PLAYER_DATABASE_URL=postgresql://...</code></pre>
+
+    <h3>Frontend (.env)</h3>
+    <pre><code>VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_APP_ID=...
+
+VITE_API_BASE_URL=http://localhost:3000</code></pre>
+
+    <hr>
+
+    <h2>Scripts NPM</h2>
+
+    <h3>Backend</h3>
+    <pre><code>{
+  "build": "nest build",
+  "start": "nest start",
+  "start:dev": "nest start --watch",
+  "start:debug": "nest start --debug --watch",
+  "start:prod": "node dist/main",
+  "prisma:generate": "prisma generate --schema=prisma/ponei-db.prisma && prisma generate --schema=prisma/player-db.prisma"
+}</code></pre>
+
+    <hr>
+
+    <h2>Guardas e Middlewares</h2>
+
+    <h3>FirebaseAuthGuard</h3>
+    <ul>
+        <li><strong>Localização</strong>: <code>src/common/guards/firebase-auth.guard.ts</code></li>
+        <li>Valida token JWT do Firebase</li>
+        <li>Aplicado em todos os endpoints de usuários e assinaturas</li>
+        <li>Verifica permissões de email</li>
+    </ul>
+
+    <hr>
+
+    <h2>Fluxos de Uso Típicos</h2>
+
+    <h3>Fluxo 1: Suporte ao Usuário</h3>
+    <ol>
+        <li><strong>Login</strong> no painel com credenciais Firebase</li>
+        <li><strong>Aba "Consulta de Usuários"</strong></li>
+        <li>Buscar usuário por email/CPF/telefone/profile ID</li>
+        <li>Visualizar dados completos do usuário</li>
+        <li>Se necessário, <strong>atualizar email</strong> do usuário</li>
+        <li>Visualizar assinatura associada (se houver)</li>
+        <li>Copiar informações relevantes para clipboard</li>
+    </ol>
+
+    <h3>Fluxo 2: Suporte de Assinatura</h3>
+    <ol>
+        <li><strong>Login</strong> no painel</li>
+        <li><strong>Aba "Consulta de Assinaturas"</strong></li>
+        <li>Buscar assinatura por Subscription ID
+            <ul>
+                <li>OU usar o ID vindo da busca de usuário</li>
+            </ul>
+        </li>
+        <li>Visualizar detalhes da assinatura</li>
+        <li><strong>Atualizar End Date</strong> se necessário (extensão)</li>
+        <li><strong>Atualizar Start Date</strong> se necessário (ajuste)</li>
+        <li>Copiar informações para registro</li>
+    </ol>
+
+    <h3>Fluxo 3: Diagnóstico Completo</h3>
+    <ol>
+        <li><strong>Login</strong> no painel</li>
+        <li>Buscar usuário por email</li>
+        <li>Sistema <strong>auto-busca</strong> assinatura associada</li>
+        <li>Alternar para aba "Consulta de Assinaturas" (já preenchida)</li>
+        <li>Analisar histórico de detalhes</li>
+        <li>Fazer ajustes nas datas se necessário</li>
+        <li>Documentar alterações</li>
+    </ol>
+
+    <hr>
+
+    <h2>Tecnologias Utilizadas</h2>
+
+    <h3>Backend</h3>
+    <ul>
+        <li><strong>Framework</strong>: NestJS 11.0.1</li>
+        <li><strong>ORM</strong>: Prisma 6.19.3</li>
+        <li><strong>Banco de Dados</strong>: PostgreSQL</li>
+        <li><strong>Validação</strong>: class-validator, class-transformer</li>
+        <li><strong>Firebase</strong>: firebase-admin 13.8.0</li>
+        <li><strong>Linguagem</strong>: TypeScript 5.7.3</li>
+    </ul>
+
+    <h3>Frontend</h3>
+    <ul>
+        <li><strong>Framework</strong>: React 18</li>
+        <li><strong>Build</strong>: Vite</li>
+        <li><strong>Estilização</strong>: TailwindCSS</li>
+        <li><strong>Autenticação</strong>: Firebase SDK</li>
+        <li><strong>Linguagem</strong>: TypeScript</li>
+    </ul>
+
+    <hr>
+
+    <h2>Notas Importantes</h2>
+    <ol>
+        <li><strong>Renomeação de Schemas</strong>: O sistema foi migrado de <code>users-db/subscriptions-db</code> para <code>ponei-db/player-db</code></li>
+        <li><strong>Repository Pattern</strong>: Ambos os módulos usam pattern de repository para abstração do banco</li>
+        <li><strong>Separação de Dados</strong>: Usuários e assinaturas estão em bancos separados</li>
+        <li><strong>Auto-refresh</strong>: Token Firebase é renovado automaticamente antes de cada requisição</li>
+        <li><strong>Normalização</strong>: CPF e telefone são normalizados (remoção de espaços, pontos, traços)</li>
+        <li><strong>Limites</strong>: Busca de usuários retorna até 50 resultados</li>
+        <li><strong>Timezone</strong>: End Date é definido para 23:59:59 do dia informado</li>
+    </ol>
+
+    <hr>
+
+    <h2>Estrutura de Diretórios</h2>
+    <pre><code>SupPage/
+├── backend/
+│   ├── src/
+│   │   ├── common/
+│   │   │   ├── guards/
+│   │   │   │   └── firebase-auth.guard.ts
+│   │   │   └── interceptors/
+│   │   ├── database/
+│   │   │   └── prisma.service.ts
+│   │   ├── modules/
+│   │   │   ├── users/
+│   │   │   │   ├── users.controller.ts
+│   │   │   │   ├── users.service.ts
+│   │   │   │   ├── users.repository.ts
+│   │   │   │   └── dto/
+│   │   │   └── subscriptions/
+│   │   │       ├── subscriptions.controller.ts
+│   │   │       ├── subscriptions.service.ts
+│   │   │       ├── subscriptions.repository.ts
+│   │   │       └── dto/
+│   │   ├── generated/
+│   │   │   ├── ponei-db/
+│   │   │   └── player-db/
+│   │   └── main.ts
+│   ├── prisma/
+│   │   ├── ponei-db.prisma
+│   │   └── player-db.prisma
+│   ├── .env
+│   ├── nest-cli.json
+│   ├── tsconfig.json
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── lib/
+│   │   └── App.tsx
+│   ├── .env
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.ts
+└── DOCUMENTACAO_FUNCIONALIDADES.md</code></pre>
+
+    <hr>
+
+    <h2>Configuração de Desenvolvimento</h2>
+
+    <h3>Pré-requisitos</h3>
+    <ul>
+        <li>Node.js 18+</li>
+        <li>PostgreSQL</li>
+        <li>Conta Firebase configurada</li>
+        <li>Variáveis de ambiente configuradas</li>
+    </ul>
+
+    <h3>Instalação</h3>
+
+    <p><strong>Backend</strong>:</p>
+    <pre><code>cd backend
+npm install
+npm run prisma:generate
+npm run start:dev</code></pre>
+
+    <p><strong>Frontend</strong>:</p>
+    <pre><code>cd frontend
+npm install
+npm run dev</code></pre>
+
+    <hr>
+
+    <h2>Deploy</h2>
+
+    <h3>Backend</h3>
+    <ol>
+        <li>Configurar variáveis de ambiente de produção</li>
+        <li>Build do projeto: <code>npm run build</code></li>
+        <li>Executar: <code>npm run start:prod</code></li>
+    </ol>
+
+    <h3>Frontend</h3>
+    <ol>
+        <li>Configurar variáveis de ambiente de produção</li>
+        <li>Build do projeto: <code>npm run build</code></li>
+        <li>Deploy do diretório <code>dist</code> em servidor web estático</li>
+    </ol>
+
+    <hr>
+
+    <h2>Suporte e Manutenção</h2>
+    <p>Para questões relacionadas ao desenvolvimento ou bugs, entre em contato com a equipe de desenvolvimento.</p>
+
+    <hr>
+
+    <p><strong>Versão</strong>: 1.0.0<br>
+    <strong>Última atualização</strong>: Maio 2026</p>
+
+</body>
+</html>
