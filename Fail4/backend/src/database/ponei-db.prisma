@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/ponei"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PONEI_DATABASE_URL")
+}
+
+model AspNetUsers {
+  Id                   String             @id(map: "PK_AspNetUsers")
+  ProfileId            String?            @db.Uuid
+  UserName             String?            @db.VarChar(256)
+  NormalizedUserName   String?            @unique(map: "UserNameIndex") @db.VarChar(256)
+  Email                String?            @db.VarChar(256)
+  NormalizedEmail      String?            @db.VarChar(256)
+  EmailConfirmed       Boolean
+  PasswordHash         String?
+  SecurityStamp        String?
+  ConcurrencyStamp     String?
+  PhoneNumber          String?
+  PhoneNumberConfirmed Boolean
+  TwoFactorEnabled     Boolean
+  LockoutEnd           DateTime?          @db.Timestamptz(6)
+  LockoutEnabled       Boolean
+  AccessFailedCount    Int
+  UserAddressId        String?            @db.Uuid
+  UserOrigin           Int                @default(0)
+  AspNetUserClaims     AspNetUserClaims[]
+  AspNetUserLogins     AspNetUserLogins[]
+  AspNetUserRoles      AspNetUserRoles[]
+  AspNetUserTokens     AspNetUserTokens[]
+  Profiles             Profiles?          @relation(fields: [ProfileId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_AspNetUsers_Profiles_ProfileId")
+  UserAddresses        UserAddresses?     @relation(fields: [UserAddressId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_AspNetUsers_UserAddresses_UserAddressId")
+  Transactions         Transactions[]
+  Wallets              Wallets?
+
+  @@index([NormalizedEmail], map: "EmailIndex")
+  @@index([ProfileId], map: "IX_AspNetUsers_ProfileId")
+  @@index([UserAddressId], map: "IX_AspNetUsers_UserAddressId")
+  @@map("AspNetUsers")
+}
+
+model AspNetRoleClaims {
+  Id          Int         @id(map: "PK_AspNetRoleClaims") @default(autoincrement())
+  RoleId      String
+  ClaimType   String?
+  ClaimValue  String?
+  AspNetRoles AspNetRoles @relation(fields: [RoleId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetRoleClaims_AspNetRoles_RoleId")
+
+  @@index([RoleId], map: "IX_AspNetRoleClaims_RoleId")
+}
+
+model AspNetRoles {
+  Id               String             @id(map: "PK_AspNetRoles")
+  Name             String?            @db.VarChar(256)
+  NormalizedName   String?            @unique(map: "RoleNameIndex") @db.VarChar(256)
+  ConcurrencyStamp String?
+  AspNetRoleClaims AspNetRoleClaims[]
+  AspNetUserRoles  AspNetUserRoles[]
+}
+
+model AspNetUserClaims {
+  Id          Int         @id(map: "PK_AspNetUserClaims") @default(autoincrement())
+  UserId      String
+  ClaimType   String?
+  ClaimValue  String?
+  AspNetUsers AspNetUsers @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetUserClaims_AspNetUsers_UserId")
+
+  @@index([UserId], map: "IX_AspNetUserClaims_UserId")
+}
+
+model AspNetUserLogins {
+  LoginProvider       String
+  ProviderKey         String
+  ProviderDisplayName String?
+  UserId              String
+  AspNetUsers         AspNetUsers @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetUserLogins_AspNetUsers_UserId")
+
+  @@id([LoginProvider, ProviderKey], map: "PK_AspNetUserLogins")
+  @@index([UserId], map: "IX_AspNetUserLogins_UserId")
+}
+
+model AspNetUserRoles {
+  UserId      String
+  RoleId      String
+  AspNetRoles AspNetRoles @relation(fields: [RoleId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetUserRoles_AspNetRoles_RoleId")
+  AspNetUsers AspNetUsers @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetUserRoles_AspNetUsers_UserId")
+
+  @@id([UserId, RoleId], map: "PK_AspNetUserRoles")
+  @@index([RoleId], map: "IX_AspNetUserRoles_RoleId")
+}
+
+model AspNetUserTokens {
+  UserId        String
+  LoginProvider String
+  Name          String
+  Value         String?
+  AspNetUsers   AspNetUsers @relation(fields: [UserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_AspNetUserTokens_AspNetUsers_UserId")
+
+  @@id([UserId, LoginProvider, Name], map: "PK_AspNetUserTokens")
+}
+
+model Clients {
+  Id       String  @id(map: "PK_Clients") @db.Uuid
+  Name     String
+  Secret   String
+  TenantId String  @db.Uuid
+  Tenants  Tenants @relation(fields: [TenantId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Clients_Tenants_TenantId")
+
+  @@index([TenantId], map: "IX_Clients_TenantId")
+}
+
+model CoinEvents {
+  Id              String         @id(map: "PK_CoinEvents") @db.Uuid
+  EventType       Int
+  Date            DateTime       @db.Timestamptz(6)
+  RelatedEntityId String         @db.Uuid
+  Transactions    Transactions[]
+
+  @@index([RelatedEntityId], map: "IX_CoinEvents_RelatedEntityId")
+}
+
+model PasswordRecoveryCodes {
+  Id        String   @id(map: "PK_PasswordRecoveryCodes") @db.Uuid
+  Email     String   @unique(map: "IX_PasswordRecoveryCodes_Email")
+  Code      String
+  ExpiresAt DateTime @db.Timestamptz(6)
+}
+
+model Profiles {
+  Id           String        @id(map: "PK_Profiles") @db.Uuid
+  Name         String
+  SurName      String
+  CpfCnpj      String
+  DocumentType Int           @default(0)
+  Phone        String        @default("")
+  AspNetUsers  AspNetUsers[]
+}
+
+model Tenants {
+  Id      String    @id(map: "PK_Tenants") @db.Uuid
+  Name    String
+  Clients Clients[]
+}
+
+model Transactions {
+  Id                String      @id(map: "PK_Transactions") @db.Uuid
+  ApplicationUserId String
+  CoinEventId       String?     @db.Uuid
+  Date              DateTime    @db.Timestamptz(6)
+  Amount            Int
+  AspNetUsers       AspNetUsers @relation(fields: [ApplicationUserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Transactions_AspNetUsers_ApplicationUserId")
+  CoinEvents        CoinEvents? @relation(fields: [CoinEventId], references: [Id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Transactions_CoinEvents_CoinEventId")
+
+  @@index([ApplicationUserId], map: "IX_Transactions_ApplicationUserId")
+  @@index([CoinEventId], map: "IX_Transactions_CoinEventId")
+}
+
+model UserAddresses {
+  Id           String        @id(map: "PK_UserAddresses") @db.Uuid
+  PostalCode   String
+  Street       String
+  Number       String
+  Country      String
+  State        String
+  City         String
+  Neighborhood String        @default("")
+  Complement   String        @default("")
+  AspNetUsers  AspNetUsers[]
+}
+
+model Wallets {
+  Id                Int         @id(map: "PK_Wallets") @default(autoincrement())
+  ApplicationUserId String      @unique(map: "IX_Wallets_ApplicationUserId")
+  Balance           Int
+  AspNetUsers       AspNetUsers @relation(fields: [ApplicationUserId], references: [Id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Wallets_AspNetUsers_ApplicationUserId")
+}
+
+model EFMigrationsHistory {
+  MigrationId    String @id(map: "PK___EFMigrationsHistory") @db.VarChar(150)
+  ProductVersion String @db.VarChar(32)
+
+  @@map("__EFMigrationsHistory")
+}
